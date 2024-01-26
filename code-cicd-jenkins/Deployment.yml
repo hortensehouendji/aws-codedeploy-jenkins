@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  AWS CloudFormation Sample Template IAM_Users_Groups_and_Policies: Sample
+  template showing how to create IAM users, groups and policies. It creates a single
+Parameters:
+  # The name of an existing key pair
+  KeyPairName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+    # Instance type
+  Ec2Image:
+    Description: The image of the instance to launch. It is created from an EC2 image. Choose an existing image in the account
+    Type: String 
+    Default: ami-02c15110d5e4df437
+    ConstraintDescription: must be the name of an existing image
+
+# Mappings
+Mappings:
+  RegionMap: # the ami to lauch
+    us-east-1:
+      HVM64: ami-04d29b6f966df1537
+    us-east-2:
+      HVM64: ami-09558250a3419e7d0
+    us-west-1:
+      HVM64: ami-08d9a394ac1c2994c      
+    us-west-2:
+      HVM64: ami-0e472933a1395e172 
+
+Resources: 
+  CodeDeployApp:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: CodeDeployApp
+      ComputePlatform: Server
+      Tags: 
+        - Key: Name 
+          Value: CodeDeploy-app
+
+  CodeDeployDG:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties: 
+      ServiceRoleArn: !ImportValue Iam-IamRoleCodeDeployArn
+      ApplicationName: !Ref CodeDeployApp
+      AutoScalingGroups: 
+        - !ImportValue ApplicationScaled-ASGName
+      LoadBalancerInfo:
+        ElbInfoList:
+          - Name: !ImportValue ApplicationScaled-ALBname
+      Tags: 
+        - Key: Name 
+          Value: CodeDeploy-DG
+
+  # CodeDeployBucket:
+  #   Type: AWS::S3::Bucket
+  #   Properties:
+  #     BucketName: code-deploy-bucket
+  

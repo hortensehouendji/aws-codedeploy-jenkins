@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  AWS CloudFormation Sample Template IAM_Users_Groups_and_Policies: Sample
+  template showing how to create IAM users, groups and policies. It creates a single
+Parameters:
+  # The name of an existing key pair
+  KeyPairName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  
+  # Instance type
+  InstanceType:
+    Description: The type of EC2 instance to launch
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t1.micro
+      - t2.nano
+      - t2.micro
+      - t2.nano
+    ConstraintDescription: the type must be a valid EC2 type
+
+# Mappings
+Mappings:
+  RegionMap: # the ami to lauch
+    us-east-1:
+      HVM64: ami-04d29b6f966df1537
+    us-east-2:
+      HVM64: ami-09558250a3419e7d0
+    us-west-1:
+      HVM64: ami-08d9a394ac1c2994c      
+    us-west-2:
+      HVM64: ami-0e472933a1395e172 
+
+Resources:
+# The security group of the ec2 instance to deploy (http, https, ssh)
+  WebServerSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable HTTP ingress
+      VpcId: !ImportValue CloudInfrastructure-VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+
+# EC2 instances
+  WebServer: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      IamInstanceProfile: !ImportValue Iam-Ec2CodeDeployS3InstProfileName
+      SubnetId: !ImportValue CloudInfrastructure-PubSubnet1ID
+      ImageId: !FindInMap [RegionMap,  us-east-2, HVM64]
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      SecurityGroupIds:
+        - !Ref WebServerSG
+      Tags:
+        - Key: Name
+          Value: CodeDeployInstance1
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash
+            - |
+              sudo yum update -y
+            - |
+              sudo yum -y install ruby
+            - |
+              sudo yum -y install wget
+            - |
+              cd /home/ec2-user
+            - |
+              Wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install
+            - |
+              sudo chmod +x ./install
+            - |
+              sudo ./install auto
+            - |
+              sudo yum install -y python-pip
+            - |
+             sudo pip install awscli
+            
+            
+Outputs:
+  WebServerId:
+    Description: webserver id
+    Value: !Ref WebServer
+    Export:
+      Name: !Sub '${AWS::StackName}-WebServerId'
+    
+  WebServerSGId:
+    Description: webserver SG id
+    Value: !Ref WebServerSG
+    Export:
+      Name: !Sub '${AWS::StackName}-WebServerSgId'           
+  
